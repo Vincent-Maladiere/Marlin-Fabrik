@@ -61,10 +61,7 @@ typedef struct {
   unsigned long final_rate;                          // The minimal rate at exit
   unsigned long acceleration_st;                     // acceleration steps/sec^2
   unsigned long fan_speed;
-  #ifdef BARICUDA
-  unsigned long valve_pressure;
-  unsigned long e_to_p_pressure;
-  #endif
+
   volatile char busy;
   #ifdef MUVE
   bool laser;
@@ -150,9 +147,6 @@ FORCE_INLINE bool blocks_queued()
     return true;
 }
 
-#ifdef PREVENT_DANGEROUS_EXTRUDE
-void set_extrude_min_temp(float temp);
-#endif
 
 void reset_acceleration_rates();
 #endif
