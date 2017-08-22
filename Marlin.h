@@ -172,6 +172,7 @@ void clamp_to_software_endstops(float target[3]);
 
 #ifdef FORCE_SENSOR
 int read_force();
+void force_plan_buffer_line();
 #endif
 
 #ifdef FAST_PWM_FAN
