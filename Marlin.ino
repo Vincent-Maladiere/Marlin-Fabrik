@@ -20,8 +20,8 @@
 
 /*
  This firmware is a mashup between Sprinter and grbl.
-  (https://github.com/kliment/Sprinter)
-  (https://github.com/simen/grbl/tree)
+    (https://github.com/kliment/Sprinter)
+    (https://github.com/simen/grbl/tree)
  
  It has preliminary support for Matthew Roberts advance algorithm 
     http://reprap.org/pipermail/reprap-dev/2011-May/003323.html
