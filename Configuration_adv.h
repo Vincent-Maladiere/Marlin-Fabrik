@@ -251,8 +251,8 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 #endif
 // 1 = ATX
 #if (POWER_SUPPLY == 1) 
-  #define PS_ON_AWAKE  LOW
-  #define PS_ON_ASLEEP HIGH
+  #define PS_ON_AWAKE  HIGH
+  #define PS_ON_ASLEEP LOW
 #endif
 // 2 = X-Box 360 203W
 #if (POWER_SUPPLY == 2) 
