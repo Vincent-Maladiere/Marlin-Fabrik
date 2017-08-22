@@ -318,7 +318,7 @@ void setup_powerhold()
   #endif
   #if defined(PS_ON_PIN) && PS_ON_PIN > -1
     SET_OUTPUT(PS_ON_PIN);
-    WRITE(PS_ON_PIN, PS_ON_AWAKE);
+    WRITE(PS_ON_PIN, PS_ON_ASLEEP);
   #endif
 }
 
