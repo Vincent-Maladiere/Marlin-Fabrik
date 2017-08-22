@@ -388,15 +388,18 @@ const bool Z_MAX_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 // SF send wrong arc g-codes when using Arc Point as fillet procedure
 //#define SF_ARC_FIX
 
-//Force sensor for mUve3D CDMA printers, which allows to detect strenght applyed on the last layer in order to adjust the servo's speed
+//Force sensor for mUve3D CDMA technology (MOTHERBOARD == 33), which allows the printer to detect the polymere strenght applyed on the last layer.
+//By knowing this force, we can adjust the servo's speed to avoid any break of the piece being printed along the Z_AXIS
+//- and gain time when there is no force at all.
 #define FORCE_SENSOR
 #ifdef FORCE_SENSOR
-  #define FORCE_PIN PINA0 //Or only "A5"
+  #define FORCE_PIN PINA0 //Or "A0"
+  #define NUMSEGMENT 10 //Number of equal segments from peel_distance 
   #define NUMFORCE 3 //Number of force levels, (strongest strenght) A > B > C (lowest strenght), each matching a speed. 
   //Levels are set verticaly, along the Z_AXIS.
-  #define FORCEA 1000
-  #define FORCEB 100
-  #define FORCEC 10
+  #define FORCEA 4
+  #define FORCEB 2
+  #define FORCEC 0.5
   #define SPEED_COEFFA 1
   #define SPEED_COEFFB 2
   #define SPEED_COEFFC 3
