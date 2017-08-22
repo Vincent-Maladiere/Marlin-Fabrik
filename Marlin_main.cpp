@@ -32,7 +32,6 @@
 #include "planner.h"
 #include "stepper.h"
 #include "temperature.h"
-#include "motion_control.h"
 #include "watchdog.h"
 #include "ConfigurationStore.h"
 #include "language.h"
