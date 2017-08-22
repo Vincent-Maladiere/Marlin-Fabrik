@@ -159,13 +159,6 @@ int fanSpeed=0;
 #endif
 
 
-
-
-
-
-
-
-
 //===========================================================================
 //=============================private variables=============================
 //===========================================================================
@@ -228,6 +221,12 @@ static int force_table[NUMFORCE][2] = {
     {FORCEC, SPEED_COEFFC}
 };
 int force_warning_flag = 0;
+
+float ReadingA_Strain1 = 119.0;
+float LoadA_Strain1 = 0.0; //  (Kg,lbs..) 
+float ReadingB_Strain1 = 130.0;
+float LoadB_Strain1 = 3.0; //  (Kg,lbs..)
+
 #endif
 //===========================================================================
 //=============================ROUTINES=============================
@@ -1758,8 +1757,11 @@ bool setTargetedHotend(int code){
 
 #ifdef FORCE_SENSOR
 int read_force(){
-  int raw_force = analogRead(FORCE_PIN);
+  float raw_force = analogRead(FORCE_PIN);
+  raw_force =((LoadB_Strain1 - LoadA_Strain1)/(ReadingB_Strain1 - ReadingA_Strain1)) * (raw_force - ReadingA_Strain1) + LoadA_Strain1;
+  
   int index_force = -1;
+	
   if(raw_force > force_table[0][0]){
     SERIAL_PROTOCOL("Force is too strenght: ");
     SERIAL_PROTOCOL(raw_force);
