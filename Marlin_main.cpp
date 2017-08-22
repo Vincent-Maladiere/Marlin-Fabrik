@@ -774,7 +774,7 @@ void process_commands()
         WRITE(PS_ON_PIN, PS_ON_AWAKE);
         
         break;
-      #endif
+    #endif
 
       case 81: // M81 - Turn off Power Supply
         disable_heater();
@@ -837,6 +837,15 @@ void process_commands()
       code_seen('S');
       max_inactive_time = code_value() * 1000;
       break;
+		    
+    #if defined(PS_ON_PIN) && PS_ON_PIN > -1
+    case 86: // M86 - Turn off Pump
+	SET_OUTPUT(PS_ON_PIN);
+	WRITE(PS_ON_PIN, PS_ON_ASLEEP);
+
+	break;
+    #endif
+		    
     case 92: // M92
       for(int8_t i=0; i < NUM_AXIS; i++)
       {
