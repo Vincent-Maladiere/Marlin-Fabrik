@@ -322,13 +322,6 @@ ISR(TIMER1_COMPA_vect)
       counter_e = counter_x;
       step_events_completed = 0;
 
-      #ifdef Z_LATE_ENABLE
-        if(current_block->steps_z > 0) {
-          enable_z();
-          OCR1A = 2000; //1ms wait
-          return;
-        }
-      #endif
 
 //      #ifdef ADVANCE
 //      e_steps[current_block->active_extruder] = 0;
@@ -657,36 +650,7 @@ ISR(TIMER1_COMPA_vect)
           WRITE(E0_STEP_PIN, !INVERT_E_STEP_PIN);
         }
       }
- #if EXTRUDERS > 1
-      if (e_steps[1] != 0) {
-        WRITE(E1_STEP_PIN, INVERT_E_STEP_PIN);
-        if (e_steps[1] < 0) {
-          WRITE(E1_DIR_PIN, INVERT_E1_DIR);
-          e_steps[1]++;
-          WRITE(E1_STEP_PIN, !INVERT_E_STEP_PIN);
-        }
-        else if (e_steps[1] > 0) {
-          WRITE(E1_DIR_PIN, !INVERT_E1_DIR);
-          e_steps[1]--;
-          WRITE(E1_STEP_PIN, !INVERT_E_STEP_PIN);
-        }
-      }
- #endif
- #if EXTRUDERS > 2
-      if (e_steps[2] != 0) {
-        WRITE(E2_STEP_PIN, INVERT_E_STEP_PIN);
-        if (e_steps[2] < 0) {
-          WRITE(E2_DIR_PIN, INVERT_E2_DIR);
-          e_steps[2]++;
-          WRITE(E2_STEP_PIN, !INVERT_E_STEP_PIN);
-        }
-        else if (e_steps[2] > 0) {
-          WRITE(E2_DIR_PIN, !INVERT_E2_DIR);
-          e_steps[2]--;
-          WRITE(E2_STEP_PIN, !INVERT_E_STEP_PIN);
-        }
-      }
- #endif
+ 
     }
   }
 #endif // ADVANCE
@@ -716,13 +680,7 @@ void st_init()
   #if defined(E0_DIR_PIN) && E0_DIR_PIN > -1
     SET_OUTPUT(E0_DIR_PIN);
   #endif
-  #if defined(E1_DIR_PIN) && (E1_DIR_PIN > -1)
-    SET_OUTPUT(E1_DIR_PIN);
-  #endif
-  #if defined(E2_DIR_PIN) && (E2_DIR_PIN > -1)
-    SET_OUTPUT(E2_DIR_PIN);
-  #endif
-
+  
   //Initialize Enable Pins - steppers default to disabled.
 
   #if defined(X_ENABLE_PIN) && X_ENABLE_PIN > -1
@@ -834,16 +792,7 @@ void st_init()
     WRITE(E0_STEP_PIN,INVERT_E_STEP_PIN);
     disable_e0();
   #endif
-  #if defined(E1_STEP_PIN) && (E1_STEP_PIN > -1)
-    SET_OUTPUT(E1_STEP_PIN);
-    WRITE(E1_STEP_PIN,INVERT_E_STEP_PIN);
-    disable_e1();
-  #endif
-  #if defined(E2_STEP_PIN) && (E2_STEP_PIN > -1)
-    SET_OUTPUT(E2_STEP_PIN);
-    WRITE(E2_STEP_PIN,INVERT_E_STEP_PIN);
-    disable_e2();
-  #endif
+
 
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -939,96 +888,6 @@ void quickStop()
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 }
 
-#ifdef BABYSTEPPING
-
-
-void babystep(const uint8_t axis,const bool direction)
-{
-  //MUST ONLY BE CALLED BY A ISR, it depends on that no other ISR interrupts this
-    //store initial pin states
-  switch(axis)
-  {
-  case X_AXIS:
-  {
-    enable_x();   
-    uint8_t old_x_dir_pin= READ(X_DIR_PIN);  //if dualzstepper, both point to same direction.
-   
-    //setup new step
-    WRITE(X_DIR_PIN,(INVERT_X_DIR)^direction);
-    
-    //perform step 
-    WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN); 
-
-    {
-    float x=1./float(axis+1)/float(axis+2); //wait a tiny bit
-    }
-    WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
-
-    //get old pin state back.
-    WRITE(X_DIR_PIN,old_x_dir_pin);
-
-  }
-  break;
-  case Y_AXIS:
-  {
-    enable_y();   
-    uint8_t old_y_dir_pin= READ(Y_DIR_PIN);  //if dualzstepper, both point to same direction.
-   
-    //setup new step
-    WRITE(Y_DIR_PIN,(INVERT_Y_DIR)^direction);
-    
-    //perform step 
-    WRITE(Y_STEP_PIN, !INVERT_Y_STEP_PIN); 
-
-    {
-    float x=1./float(axis+1)/float(axis+2); //wait a tiny bit
-    }
-    WRITE(Y_STEP_PIN, INVERT_Y_STEP_PIN);
-
-    //get old pin state back.
-    WRITE(Y_DIR_PIN,old_y_dir_pin);
-
-  }
-  break;
- 
-
-  case Z_AXIS:
-  {
-    enable_z();
-    uint8_t old_z_dir_pin= READ(Z_DIR_PIN);  //if dualzstepper, both point to same direction.
-    //setup new step
-    WRITE(Z_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
-    #ifdef Z_DUAL_STEPPER_DRIVERS
-      WRITE(Z2_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
-    #endif
-    //perform step 
-    WRITE(Z_STEP_PIN, !INVERT_Z_STEP_PIN); 
-    #ifdef Z_DUAL_STEPPER_DRIVERS
-      WRITE(Z2_STEP_PIN, !INVERT_Z_STEP_PIN);
-    #endif
-    //wait a tiny bit
-    {
-    float x=1./float(axis+1); //absolutely useless
-    }
-    WRITE(Z_STEP_PIN, INVERT_Z_STEP_PIN);
-    #ifdef Z_DUAL_STEPPER_DRIVERS
-      WRITE(Z2_STEP_PIN, INVERT_Z_STEP_PIN);
-    #endif
-
-    //get old pin state back.
-    WRITE(Z_DIR_PIN,old_z_dir_pin);
-    #ifdef Z_DUAL_STEPPER_DRIVERS
-      WRITE(Z2_DIR_PIN,old_z_dir_pin);
-    #endif
-
-  }
-  break;
-
- 
-  default:    break;
-  }
-}
-#endif //BABYSTEPPING
 
 void digitalPotWrite(int address, int value) // From Arduino DigitalPotControl example
 {
@@ -1126,4 +985,3 @@ void microstep_readings()
       SERIAL_PROTOCOL(   digitalRead(E1_MS1_PIN));
       SERIAL_PROTOCOLLN( digitalRead(E1_MS2_PIN));
 }
-

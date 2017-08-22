@@ -371,7 +371,7 @@ void MarlinSerial::setRegisters(void)
     }
 }
 
-// Preinstantiate Objects //////////////////////////////////////////////////////
+// Preinstantiate Objects /////////////////////////////////////////////////////
 
 MarlinSerial MSerial;
 #if defined (PROJECTOR_SERIAL_PORT)

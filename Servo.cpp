@@ -72,7 +72,7 @@ uint8_t ServoCount = 0;                                     // the total number 
 #define SERVO_MIN() (MIN_PULSE_WIDTH - this->min * 4)  // minimum value in uS for this servo
 #define SERVO_MAX() (MAX_PULSE_WIDTH - this->max * 4)  // maximum value in uS for this servo
 
-/************ static functions common to all instances ***********************/
+/************ static functions common to all instances **********************/
 
 static inline void handle_interrupts(timer16_Sequence_t timer, volatile uint16_t *TCNTn, volatile uint16_t* OCRnA)
 {

@@ -53,7 +53,6 @@
  * If _useTimerX is defined then TimerX is a 16 bit timer on the curent board
  * timer16_Sequence_t enumerates the sequence that the timers should be allocated
  * _Nbr_16timers indicates how many 16 bit timers are available.
- *
  */
 
 // Say which 16 bit timers can be used and in what order
