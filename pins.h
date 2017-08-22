@@ -82,7 +82,7 @@
 
 
 
-  #define PS_ON_PIN          12
+  #define PS_ON_PIN          9
 
 
     #define HEATER_0_PIN       10   // EXTRUDER 1
