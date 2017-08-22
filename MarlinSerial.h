@@ -209,6 +209,6 @@ class MarlinSerial //: public Stream
 extern MarlinSerial MSerial;
 extern MarlinSerial PSerial;
 
-#endif // !AT90USB
+#endif // /!AT90USB
 
 #endif
