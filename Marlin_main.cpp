@@ -58,7 +58,6 @@
 
 // G4  - Dwell S<seconds> or P<milliseconds>
 
-// G28 - Home all Axis
 // G29 - Detailed Z-Probe, probes the bed at 3 points.  You must de at the home position for this to work correctly.
 // G30 - Single Z Probe, probes bed at current XY location.
 // G90 - Use Absolute Coordinates
@@ -159,17 +158,10 @@ int fanSpeed=0;
   int servo_endstops[] = SERVO_ENDSTOPS;
   int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
 #endif
-#ifdef BARICUDA
-int ValvePressure=0;
-int EtoPPressure=0;
-#endif
 
-#ifdef FWRETRACT
-  bool autoretract_enabled=true;
-  bool retracted=false;
-  float retract_length=3, retract_feedrate=17*60, retract_zlift=0.8;
-  float retract_recover_length=0, retract_recover_feedrate=8*60;
-#endif
+
+
+
 
 
 
@@ -189,7 +181,6 @@ static float tilt_distance = 0; //Used by mUVe 3D Tilt Control
 static float layer_thickness = 0; //Used by mUVe 3D Peel Control
 static bool tilted = false; // Whether we're currently tilted. Sending the command again will tell us to un-tilt.
 static float offset[3] = {0.0, 0.0, 0.0};
-static bool home_all_axis = true;
 static float feedrate = 1500.0, next_feedrate, saved_feedrate;
 static long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
 
@@ -231,6 +222,14 @@ bool Stopped=false;
 bool CooldownNoWait = true;
 bool target_direction;
 
+#ifdef FORCE_SENSOR
+static int force_table[NUMFORCE][2] = {
+    {FORCEA, SPEED_COEFFA},
+    {FORCEB, SPEED_COEFFB},
+    {FORCEC, SPEED_COEFFC}
+};
+int force_warning_flag = 0;
+#endif
 //===========================================================================
 //=============================ROUTINES=============================
 //===========================================================================
@@ -584,70 +583,6 @@ XYZ_CONSTS_FROM_CONFIG(signed char, home_dir,  HOME_DIR);
 
     
 
-static void axis_is_at_home(int axis) {
-
-  current_position[axis] = base_home_pos(axis) + add_homeing[axis];
-  min_pos[axis] =          base_min_pos(axis) + add_homeing[axis];
-  max_pos[axis] =          base_max_pos(axis) + add_homeing[axis];
-}
-
-
-static void homeaxis(int axis) {
-#define HOMEAXIS_DO(LETTER) \
-  ((LETTER##_MIN_PIN > -1 && LETTER##_HOME_DIR==-1) || (LETTER##_MAX_PIN > -1 && LETTER##_HOME_DIR==1))
-
-  if (axis==X_AXIS ? HOMEAXIS_DO(X) :
-      axis==Y_AXIS ? HOMEAXIS_DO(Y) :
-      axis==Z_AXIS ? HOMEAXIS_DO(Z) :
-      0) {
-    int axis_home_dir = home_dir(axis);
-
-
-    // Engage Servo endstop if enabled
-    #ifdef SERVO_ENDSTOPS
-
-      if (servo_endstops[axis] > -1) {
-        servos[servo_endstops[axis]].write(servo_endstop_angles[axis * 2]);
-      }
-    #endif
-
-    current_position[axis] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[Z_AXIS]);
-    destination[axis] = 1.5 * max_length(axis) * axis_home_dir;
-    feedrate = homing_feedrate[axis];
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[Z_AXIS], feedrate/60, active_extruder);
-    st_synchronize();
-
-    current_position[axis] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[Z_AXIS]);
-    destination[axis] = -home_retract_mm(axis) * axis_home_dir;
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[Z_AXIS], feedrate/60, active_extruder);
-    st_synchronize();
-
-    destination[axis] = 2*home_retract_mm(axis) * axis_home_dir;
-
-    feedrate = homing_feedrate[axis]/2 ;
-
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[Z_AXIS], feedrate/60, active_extruder);
-    st_synchronize();
-
-    axis_is_at_home(axis);
-    destination[axis] = current_position[axis];
-    feedrate = 0.0;
-    endstops_hit_on_purpose();
-
-    // Retract Servo endstop if enabled
-    #ifdef SERVO_ENDSTOPS
-      if (servo_endstops[axis] > -1) {
-        servos[servo_endstops[axis]].write(servo_endstop_angles[axis * 2 + 1]);
-      }
-    #endif
-
-    
-  }
-}
-#define HOMEAXIS(LETTER) homeaxis(LETTER##_AXIS)
-
 void process_commands()
 {
   unsigned long codenum; //throw away variable
@@ -662,7 +597,7 @@ void process_commands()
       if(Stopped == false) {
         get_coordinates(); // For X Y Z E F        
         prepare_move();
-        SERIAL_ECHOLNPGM("Z_move_comp_maggle");
+        SERIAL_ECHOLNPGM("Z_move_comp");
         st_synchronize();
         //ClearToSend();
         return;
@@ -685,112 +620,6 @@ void process_commands()
       }
       break;
      
-    case 28: //G28 Home all Axis one at a time
-
-
-
-      saved_feedrate = feedrate;
-      saved_feedmultiply = feedmultiply;
-      feedmultiply = 100;
-      previous_millis_cmd = millis();
-
-      enable_endstops(true);
-
-      for(int8_t i=0; i < NUM_AXIS; i++) {
-        destination[i] = current_position[i];
-      }
-      feedrate = 0.0;
-
-
-
-      home_all_axis = !((code_seen(axis_codes[0])) || (code_seen(axis_codes[1])) || (code_seen(axis_codes[2])));
-
-      #if Z_HOME_DIR > 0                      // If homing away from BED do Z first
-      if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
-        HOMEAXIS(Z);
-      }
-      #endif
-
-      #ifdef QUICK_HOME
-      if((home_all_axis)||( code_seen(axis_codes[X_AXIS]) && code_seen(axis_codes[Y_AXIS])) )  //first diagonal move
-      {
-        current_position[X_AXIS] = 0;current_position[Y_AXIS] = 0;
-
-      
-        int x_axis_home_dir = home_dir(X_AXIS);
-
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = 1.5 * max_length(X_AXIS) * x_axis_home_dir;destination[Y_AXIS] = 1.5 * max_length(Y_AXIS) * home_dir(Y_AXIS);
-        feedrate = homing_feedrate[X_AXIS];
-        if(homing_feedrate[Y_AXIS]<feedrate)
-          feedrate =homing_feedrate[Y_AXIS];
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
-        st_synchronize();
-
-        axis_is_at_home(X_AXIS);
-        axis_is_at_home(Y_AXIS);
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = current_position[X_AXIS];
-        destination[Y_AXIS] = current_position[Y_AXIS];
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
-        feedrate = 0.0;
-        st_synchronize();
-        endstops_hit_on_purpose();
-
-        current_position[X_AXIS] = destination[X_AXIS];
-        current_position[Y_AXIS] = destination[Y_AXIS];
-        current_position[Z_AXIS] = destination[Z_AXIS];
-      }
-      #endif
-
-      if((home_all_axis) || (code_seen(axis_codes[X_AXIS])))
-      {
-            
-        HOMEAXIS(X);
-               
-      }
-
-      if((home_all_axis) || (code_seen(axis_codes[Y_AXIS]))) {
-        HOMEAXIS(Y);
-      }
-
-      #if Z_HOME_DIR < 0                      // If homing towards BED do Z last
-      if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
-        HOMEAXIS(Z);
-      }
-      #endif
-
-      if(code_seen(axis_codes[X_AXIS]))
-      {
-        if(code_value_long() != 0) {
-          current_position[X_AXIS]=code_value()+add_homeing[0];
-        }
-      }
-
-      if(code_seen(axis_codes[Y_AXIS])) {
-        if(code_value_long() != 0) {
-          current_position[Y_AXIS]=code_value()+add_homeing[1];
-        }
-      }
-
-      if(code_seen(axis_codes[Z_AXIS])) {
-        if(code_value_long() != 0) {
-          current_position[Z_AXIS]=code_value()+add_homeing[2];
-        }
-      }
-      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[Z_AXIS]);
-
-
-      #ifdef ENDSTOPS_ONLY_FOR_HOMING
-        enable_endstops(false);
-      #endif
-
-      feedrate = saved_feedrate;
-      feedmultiply = saved_feedmultiply;
-      previous_millis_cmd = millis();
-      endstops_hit_on_purpose();
-      break;
-
 
     case 90: // G90
       relative_mode = false;
@@ -1318,8 +1147,26 @@ void process_commands()
     case 651: // M651 run peel move and return back to start.
     {
       if(peel_distance > 0);
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS], peel_speed, active_extruder);
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS] + peel_distance, peel_speed, active_extruder);
+        #ifdef FORCE_SENSOR
+          if(read_force() != -1){
+            for(int i = 0; i<NUMFORCE; i++){
+              plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance/(pow(3, (NUMFORCE-1-i))), destination[Z_AXIS], peel_speed*force_table[i][1], active_extruder);
+              plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance/(pow(3, (NUMFORCE-1-i))), destination[Z_AXIS] + peel_distance/(pow(3, (NUMFORCE-1-i))), peel_speed*force_table[i][1], active_extruder);
+              if(read_force() != force_table[i][0]){
+                SERIAL_PROTOCOL("WARNING: FORCE DOESN'T MATCH ITS EXPECTED LEVEL");
+                force_warning_flag = 1;
+                break;
+              } 
+            }
+          }
+          if((read_force() == -1)||(force_warning_flag)){
+            plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS], peel_speed, active_extruder);
+            plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS] + peel_distance, peel_speed, active_extruder);
+          }
+        #else
+          plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS], peel_speed, active_extruder);
+          plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS] + peel_distance, peel_speed, active_extruder);
+        #endif
         st_synchronize();
       if(peel_pause > 0);
         st_synchronize();
@@ -1623,43 +1470,6 @@ void get_coordinates()
     next_feedrate = code_value();
     if(next_feedrate > 0.0) feedrate = next_feedrate;
   }
-
-  #ifdef FWRETRACT
-  if(autoretract_enabled)
-  if( !(seen[X_AXIS] || seen[Y_AXIS] || seen[Z_AXIS]) && seen[E_AXIS])
-  {
-    float echange=destination[E_AXIS]-current_position[E_AXIS];
-    if(echange<-MIN_RETRACT) //retract
-    {
-      if(!retracted)
-      {
-
-      destination[Z_AXIS]+=retract_zlift; //not sure why chaninging current_position negatively does not work.
-      //if slicer retracted by echange=-1mm and you want to retract 3mm, corrrectede=-2mm additionally
-      float correctede=-echange-retract_length;
-      //to generate the additional steps, not the destination is changed, but inversely the current position
-      current_position[E_AXIS]+=-correctede;
-      feedrate=retract_feedrate;
-      retracted=true;
-      }
-
-    }
-    else
-      if(echange>MIN_RETRACT) //retract_recover
-    {
-      if(retracted)
-      {
-      //current_position[Z_AXIS]+=-retract_zlift;
-      //if slicer retracted_recovered by echange=+1mm and you want to retract_recover 3mm, corrrectede=2mm additionally
-      float correctede=-echange+1*retract_length+retract_recover_length; //total unretract=retract_length+retract_recover_length[surplus]
-      current_position[E_AXIS]+=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
-      feedrate=retract_recover_feedrate;
-      retracted=false;
-      }
-    }
-
-  }
-  #endif //FWRETRACT
 }
 
 void get_arc_coordinates()
@@ -1704,7 +1514,6 @@ void clamp_to_software_endstops(float target[3])
 
 
 
-
 void prepare_move()
 {
   clamp_to_software_endstops(destination);
@@ -1731,20 +1540,7 @@ void prepare_move()
   }
 }
 
-void prepare_arc_move(char isclockwise) {
-  float r = hypot(offset[X_AXIS], offset[Y_AXIS]); // Compute arc radius for mc_arc
 
-  // Trace the arc
-  mc_arc(current_position, destination, offset, X_AXIS, Y_AXIS, Z_AXIS, feedrate*feedmultiply/60/100.0, r, isclockwise, active_extruder);
-
-  // As far as the parser is concerned, the position is now == target. In reality the
-  // motion control system might still be processing the action and the real tool position
-  // in any intermediate location.
-  for(int8_t i=0; i < NUM_AXIS; i++) {
-    current_position[i] = destination[i];
-  }
-  previous_millis_cmd = millis();
-}
 
 #if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
 
@@ -1972,5 +1768,23 @@ bool setTargetedHotend(int code){
     }
   }
   return false;
+  
 }
 
+#ifdef FORCE_SENSOR
+int read_force(){
+  int raw_force = analogRead(FORCE_PIN);
+  int realforce = -1;
+  for(int i = 0; i<NUMFORCE; i++){
+    if(force_table[i][0] > raw_force){
+      int realforce = force_table[i+1][0];
+      break;
+    }
+  }
+  if(realforce == -1){
+    SERIAL_ECHO("Invalide force ");
+    return -1;
+  }
+  return realforce;
+}
+#endif
