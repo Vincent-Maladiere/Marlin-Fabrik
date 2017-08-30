@@ -30,16 +30,22 @@
 // public functions
 void tp_init();  //initialise the heating
 void manage_heater(); //it is critical that this is called periodically.
+void updateTemperaturesFromRawValues();
+//static void updateTemperaturesFromRawValues();
 
 // low level conversion routines
 // do not use these routines and variables outside of temperature.cpp
 extern int target_temperature[EXTRUDERS];  
 extern float current_temperature[EXTRUDERS];
+
+extern int current_force_raw;
+
 extern int target_temperature_bed;
 extern float current_temperature_bed;
 #ifdef TEMP_SENSOR_1_AS_REDUNDANT
   extern float redundant_temperature;
 #endif
+
 
 #ifdef PIDTEMP
   extern float Kp,Ki,Kd,Kc;

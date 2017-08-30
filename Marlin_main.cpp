@@ -215,16 +215,16 @@ bool CooldownNoWait = true;
 bool target_direction;
 
 #ifdef FORCE_SENSOR
-static int force_table[NUMFORCE][2] = {
+static float force_table[NUMFORCE][2] = {
     {FORCEA, SPEED_COEFFA},
     {FORCEB, SPEED_COEFFB},
     {FORCEC, SPEED_COEFFC}
 };
 int force_warning_flag = 0;
 
-float ReadingA_Strain1 = 190.0;
+float ReadingA_Strain1 = 1900.0;
 float LoadA_Strain1 = 0.0; //  (Kg,lbs..) 
-float ReadingB_Strain1 = 250.0; 
+float ReadingB_Strain1 = 2400.0; 
 float LoadB_Strain1 = 3.0; //  (Kg,lbs..)
 
 #endif
@@ -726,6 +726,9 @@ void process_commands()
         SERIAL_PROTOCOL(getHeaterPower(-1));
 
         SERIAL_PROTOCOLLN("");
+
+        SERIAL_PROTOCOL("Capteur de force : ");
+        SERIAL_PROTOCOLLN(current_force_raw);
       return;
       break;
     
@@ -1766,13 +1769,23 @@ bool setTargetedHotend(int code){
 
 #ifdef FORCE_SENSOR
 int read_force(){
-  float raw_force = analogRead(0); //FORCE_PIN
-  //raw_force = ((LoadB_Strain1 - LoadA_Strain1)/(ReadingB_Strain1 - ReadingA_Strain1)) * (raw_force - ReadingA_Strain1) + LoadA_Strain1;
+  
+  //float raw_force = analogRead(0); //FORCE_PIN
+  
+  updateTemperaturesFromRawValues();
+  
+  
+  //SERIAL_PROTOCOL("raw_force : ");
+  //SERIAL_PROTOCOLLN(raw_force);
+
+  
+  //int raw_force = current_force_raw;
+  float raw_force = (float) (((LoadB_Strain1 - LoadA_Strain1)/(ReadingB_Strain1 - ReadingA_Strain1)) * (current_force_raw - ReadingA_Strain1) + LoadA_Strain1);
   
   int index_force = -1;
 	
   if(raw_force > force_table[0][0]){
-    SERIAL_PROTOCOL("Force is too strength: ");
+    SERIAL_PROTOCOL("Force is too strong : ");
     SERIAL_PROTOCOL(raw_force);
     SERIAL_PROTOCOL("--- servos speed : low");
     SERIAL_PROTOCOLLN("");
@@ -1783,13 +1796,13 @@ int read_force(){
   for(int i = 0; i<NUMFORCE; i++){
     if(raw_force > force_table[i][0]){
       index_force = i-1;
-      SERIAL_PROTOCOL("Force: ");
+      SERIAL_PROTOCOL("Force : ");
       SERIAL_PROTOCOL(raw_force);
       SERIAL_PROTOCOLLN("");
       return index_force;    
     }
     if(raw_force <= force_table[NUMFORCE-1][0]){
-      SERIAL_PROTOCOL("Force is weak: ");
+      SERIAL_PROTOCOL("Force is weak : ");
       SERIAL_PROTOCOL(raw_force);
       SERIAL_PROTOCOLLN("--- servos speed : high");
       index_force = NUMFORCE-1;
@@ -1797,31 +1810,37 @@ int read_force(){
     }
   }
   if(index_force == -1){
-    SERIAL_ECHO("Invalide force ");
+    SERIAL_ECHO("Invalid force ");
     return index_force;
   }
 }
 
 void force_plan_buffer_line(){
-  int wait_time = 0;
+  float wait_time = 0;
   for(int i = 1; i<NUMSEGMENT; i++){
-    //while(millis() < wait_time);
     int force_index = read_force();
-    SERIAL_PROTOCOL("Force_index : ");
+    SERIAL_PROTOCOL("Force_index n°: ");
+    SERIAL_PROTOCOL(i);
+    SERIAL_PROTOCOL(" : ");
     SERIAL_PROTOCOL(force_index);
     SERIAL_PROTOCOLLN("");
-    SERIAL_PROTOCOL("i : ");
-    SERIAL_PROTOCOL(i);
-    SERIAL_PROTOCOLLN("");
-
-    SERIAL_PROTOCOL("peel_speed*force_table[force_index][1] : ");
-    SERIAL_PROTOCOL(peel_speed*force_table[force_index][1]);
-    SERIAL_PROTOCOLLN("");
     
-    int force_distance = (peel_distance/(NUMSEGMENT-1))*i;
     if(force_index != -1){
+      float time_bonus = 10;
+      float force_distance = (peel_distance/((float)NUMSEGMENT-1))*i;
+      //SERIAL_PROTOCOL("force_distance : ");
+      //SERIAL_PROTOCOLLN(force_distance);
       plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + force_distance, destination[Z_AXIS], peel_speed*force_table[force_index][1], active_extruder);
-      wait_time = force_distance/(peel_speed*force_table[force_index][1]) + millis();
+      
+      wait_time = (float) millis();
+      wait_time += (peel_distance/(NUMSEGMENT-1))/(peel_speed*force_table[force_index][1])*1000;
+      wait_time += time_bonus;
+      while((float) millis() < wait_time){ //Wait for the ISR to complete its task
+        //SERIAL_PROTOCOL("wait_time : ");
+        //SERIAL_PROTOCOLLN(wait_time);
+        //SERIAL_PROTOCOL("millis : ");
+        //SERIAL_PROTOCOLLN(millis());
+      }  
     }
     else{
       SERIAL_PROTOCOL("WARNING: FORCE DOESN'T MATCH ITS EXPECTED LEVEL");
@@ -1858,9 +1877,10 @@ void force_plan_buffer_line(){
     }
   }*/   
 
+  //E_AXIS (used as a second Z_AXIS) doesn't need force sensor results and can reach its target with a high speed
   plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS] + peel_distance, peel_speed, active_extruder);
   
-  if(force_warning_flag){
+  if(force_warning_flag){ //If error, back to regular plan_buffer_line parameters 
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS], peel_speed, active_extruder);
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS] + peel_distance, destination[Z_AXIS] + peel_distance, peel_speed, active_extruder);
     SERIAL_PROTOCOL("Fonctionnement dégradé");

@@ -113,7 +113,7 @@
 // 52 is 200k thermistor - ATC Semitec 204GT-2 (1k pullup)
 // 55 is 100k thermistor - ATC Semitec 104GT-2 (Used in ParCan) (1k pullup)
 
-#define TEMP_SENSOR_0 0
+#define TEMP_SENSOR_0 1
 #define TEMP_SENSOR_1 0
 #define TEMP_SENSOR_2 0
 #define TEMP_SENSOR_BED 0
@@ -326,7 +326,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 //#define DEFAULT_AXIS_STEPS_PER_UNIT   {36.36,36.36,640,640}  // default settings for for mUVe 1-1.1
 #define DEFAULT_AXIS_STEPS_PER_UNIT   {400,36.36,400,400}  // default settings for for mUVe 1.5 or if you have the leadscrew upgrade
 #define DEFAULT_MAX_FEEDRATE          {20, 600, 20, 20}    // (mm/sec)
-#define DEFAULT_MAX_ACCELERATION      {4,4000,4,4}    // X, Y, Z, E maximum start speed for accelerated moves. E default values are good for skeinforge 40+, for older versions raise them a lot.
+#define DEFAULT_MAX_ACCELERATION      {4,4000,40,40}    // X, Y, Z, E maximum start speed for accelerated moves. E default values are good for skeinforge 40+, for older versions raise them a lot.
 
 #define DEFAULT_ACCELERATION          3000    // X, Y, Z and E max acceleration in mm/s^2 for printing moves
 #define DEFAULT_RETRACT_ACCELERATION  3000   // X, Y, Z and E max acceleration in mm/s^2 for retracts
@@ -393,16 +393,15 @@ const bool Z_MAX_ENDSTOP_INVERTING = false; // set to true to invert the logic o
 //- and gain time when there is no force at all.
 #define FORCE_SENSOR
 #ifdef FORCE_SENSOR
-  #define FORCE_PIN PINA0 //Or "A0"
-  #define NUMSEGMENT 10 //Number of equal segments from peel_distance 
+  #define NUMSEGMENT 40 //Number of equal segments from peel_distance 
   #define NUMFORCE 3 //Number of force levels, (strongest strenght) A > B > C (lowest strenght), each matching a speed. 
   //Levels are set verticaly, along the Z_AXIS.
   #define FORCEA 4
   #define FORCEB 2
   #define FORCEC 0.5
-  #define SPEED_COEFFA 1
-  #define SPEED_COEFFB 2
-  #define SPEED_COEFFC 3
+  #define SPEED_COEFFA 0.25
+  #define SPEED_COEFFB 0.5
+  #define SPEED_COEFFC 1
 #endif 
 /*********************************************************************\
 * R/C SERVO support
