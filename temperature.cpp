@@ -39,6 +39,9 @@
 int target_temperature[EXTRUDERS] = { 0 };
 int target_temperature_bed = 0;
 int current_temperature_raw[EXTRUDERS] = { 0 };
+
+int current_force_raw = 0;
+
 float current_temperature[EXTRUDERS] = { 0.0 };
 int current_temperature_bed_raw = 0;
 float current_temperature_bed = 0.0;
@@ -141,7 +144,7 @@ static int bed_maxttemp_raw = HEATER_BED_RAW_HI_TEMP;
 
 static float analog2temp(int raw, uint8_t e);
 static float analog2tempBed(int raw);
-static void updateTemperaturesFromRawValues();
+//static void updateTemperaturesFromRawValues();
 
 #ifdef WATCH_TEMP_PERIOD
 int watch_start_temp[EXTRUDERS] = ARRAY_BY_EXTRUDERS(0,0,0);
@@ -754,6 +757,13 @@ void tp_init()
        DIDR2 |= 1<<(TEMP_0_PIN - 8); 
     #endif
   #endif
+  #if defined(FORCE_0_PIN) && (FORCE_0_PIN > -1)
+    #if FORCE_0_PIN < 8
+       DIDR0 |= 1 << FORCE_0_PIN; 
+    #else
+       DIDR2 |= 1<<(FORCE_0_PIN - 8); 
+    #endif
+  #endif
   #if defined(TEMP_1_PIN) && (TEMP_1_PIN > -1)
     #if TEMP_1_PIN < 8
        DIDR0 |= 1<<TEMP_1_PIN; 
@@ -775,6 +785,7 @@ void tp_init()
        DIDR2 |= 1<<(TEMP_BED_PIN - 8); 
     #endif
   #endif
+
   
   // Use timer0 for temperature measurement
   // Interleave temperature interrupt with millies interrupt
@@ -1027,6 +1038,9 @@ ISR(TIMER0_COMPB_vect)
   static unsigned long raw_temp_0_value = 0;
   static unsigned long raw_temp_1_value = 0;
   static unsigned long raw_temp_2_value = 0;
+  
+  static unsigned long raw_force_0_value = 0;
+  
   static unsigned long raw_temp_bed_value = 0;
   static unsigned char temp_state = 0;
   static unsigned char pwm_count = (1 << SOFT_PWM_SCALE);
@@ -1079,6 +1093,7 @@ ISR(TIMER0_COMPB_vect)
   pwm_count &= 0x7f;
   
   switch(temp_state) {
+  
     case 0: // Prepare TEMP_0
       #if defined(TEMP_0_PIN) && (TEMP_0_PIN > -1)
         #if TEMP_0_PIN > 7
@@ -1101,6 +1116,8 @@ ISR(TIMER0_COMPB_vect)
       #endif
       temp_state = 2;
       break;
+
+      
     case 2: // Prepare TEMP_BED
       #if defined(TEMP_BED_PIN) && (TEMP_BED_PIN > -1)
         #if TEMP_BED_PIN > 7
@@ -1156,13 +1173,38 @@ ISR(TIMER0_COMPB_vect)
       #if defined(TEMP_2_PIN) && (TEMP_2_PIN > -1)
         raw_temp_2_value += ADC;
       #endif
-      temp_state = 0;
-      temp_count++;
+      temp_state = 8;
       break;
 //    default:
 //      SERIAL_ERROR_START;
 //      SERIAL_ERRORLNPGM("Temp measurement error!");
-//      break;
+//      break;*/
+
+    case 8: // Prepare force_0
+    //case 0: // Prepare force_0
+      #if defined(FORCE_0_PIN) && (FORCE_0_PIN > -1)
+        #if FORCE_0_PIN > 7
+          ADCSRB = 1<<MUX5;
+        #else
+          ADCSRB = 0;
+        #endif
+        ADMUX = ((1 << REFS0) | (FORCE_0_PIN & 0x07));
+        ADCSRA |= 1<<ADSC; // Start conversion
+      #endif
+        
+      temp_state = 9;
+      //temp_state = 1;
+      break;
+
+    case 9: // Measure force_0
+    //case 1: // Measure force_0
+      #if defined(FORCE_0_PIN) && (FORCE_0_PIN > -1)
+        raw_force_0_value += ADC;
+      #endif
+
+      temp_state = 0;
+      temp_count++;
+      break;
   }
     
   if(temp_count >= 16) // 8 ms * 16 = 128ms.
@@ -1170,6 +1212,10 @@ ISR(TIMER0_COMPB_vect)
     if (!temp_meas_ready) //Only update the raw values if they have been read. Else we could be updating them during reading.
     {
       current_temperature_raw[0] = raw_temp_0_value;
+
+      current_force_raw = raw_force_0_value;
+
+      
 #if EXTRUDERS > 1
       current_temperature_raw[1] = raw_temp_1_value;
 #endif
@@ -1185,6 +1231,7 @@ ISR(TIMER0_COMPB_vect)
     temp_meas_ready = true;
     temp_count = 0;
     raw_temp_0_value = 0;
+    raw_force_0_value = 0;
     raw_temp_1_value = 0;
     raw_temp_2_value = 0;
     raw_temp_bed_value = 0;

@@ -79,29 +79,30 @@
     #define FAN_PIN            4 // (Sprinter config) - Changed from 9 to 4 so that fan wouldn't be controlled and shut off constantly during motion.
 
 
-
-
-
-  #define PS_ON_PIN          9
-
-
+    #ifdef FORCE_SENSOR
+      #define FORCE_0_PIN        3    // ANALOG NUMBERING
+    #endif
+    
+    #define PS_ON_PIN          9
+  
+  
     #define HEATER_0_PIN       10   // EXTRUDER 1
-
-
   
-  #define HEATER_1_PIN       -1
   
-  #define HEATER_2_PIN       -1 
-
-
-  #define TEMP_0_PIN         13   // ANALOG NUMBERING
-  #define TEMP_1_PIN         15   // ANALOG NUMBERING
-  #define TEMP_2_PIN         -1   // ANALOG NUMBERING
-
-
-  #define HEATER_BED_PIN     8    // BED
-
-  #define TEMP_BED_PIN       14   // ANALOG NUMBERING
+    
+    #define HEATER_1_PIN       -1
+    
+    #define HEATER_2_PIN       -1 
+  
+  
+    #define TEMP_0_PIN         13   // ANALOG NUMBERING
+    #define TEMP_1_PIN         15   // ANALOG NUMBERING
+    #define TEMP_2_PIN         -1   // ANALOG NUMBERING
+  
+  
+    #define HEATER_BED_PIN     8    // BED
+  
+    #define TEMP_BED_PIN       14   // ANALOG NUMBERING
 
 
   

@@ -617,6 +617,14 @@ block->steps_y = labs(target[Y_AXIS]-position[Y_AXIS]);
     // Calculate speed in mm/second for each axis. No divide by zero due to previous checks.
   float inverse_second = feed_rate * inverse_millimeters;
 
+  /*SERIAL_PROTOCOL("feed_rate dans plan_buffer_line : ");
+  SERIAL_PROTOCOL(feed_rate);
+  SERIAL_PROTOCOLLN("");
+
+  SERIAL_PROTOCOL("inverse_second dans plan_buffer_line : ");
+  SERIAL_PROTOCOL(inverse_second);
+  SERIAL_PROTOCOLLN("");*/
+  
   int moves_queued=(block_buffer_head-block_buffer_tail + BLOCK_BUFFER_SIZE) & (BLOCK_BUFFER_SIZE - 1);
 
   // slow down when de buffer starts to empty, rather than wait at the corner for a buffer refill
@@ -772,7 +780,7 @@ block->steps_y = labs(target[Y_AXIS]-position[Y_AXIS]);
   // Update position
   memcpy(position, target, sizeof(target)); // position[] = target[]
 
-  planner_recalculate();
+  //planner_recalculate();
 
   st_wake_up();
 }
