@@ -38,13 +38,6 @@ typedef struct {
   long acceleration_rate;                   // The acceleration rate used for acceleration calculation
   unsigned char direction_bits;             // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
   unsigned char active_extruder;            // Selects the active extruder
-  #ifdef ADVANCE
-    long advance_rate;
-    volatile long initial_advance;
-    volatile long final_advance;
-    float advance;
-  #endif
-
   // Fields used by the motion planner to manage acceleration
 //  float speed_x, speed_y, speed_z, speed_e;        // Nominal mm/sec for each axis
   float nominal_speed;                               // The nominal speed for this block in mm/sec 
@@ -63,10 +56,6 @@ typedef struct {
   unsigned long fan_speed;
 
   volatile char busy;
-  #ifdef MUVE
-  bool laser;
-  float laser_power;
-  #endif
 } block_t;
 
 
@@ -77,7 +66,7 @@ void plan_init();
 // millimaters. Feed rate specifies the speed of the motion.
 
 
-void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder, bool laser = 0, float laser_power = 255);
+void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder);
 
 
 // Set position. Used for G92 instructions.
